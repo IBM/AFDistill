@@ -10,7 +10,7 @@ We propose to apply knowledge distillation to the confidence metrics of the Alph
 
 ## Inverse Protein Folding using AFDistill
 <p align="center">
-  <img src="imgs/DesignOverview.png" width="70%">
+  <img src="imgs/DesignOverview.png" width="90%">
 </p>
 Using forward folding models like AlphaFold one can estimate structure from generated sequence and compare with ground truth to get TM or LDDT, however this is slow and impractical in the optimization loop (red line). 
 Alternatively, one could use directly the AlphaFold's internal confidence metrics (pTM or pLDDT), but this results in lower fidelity and still slow solutions (blue line). Our approach distills AlphaFold's confidence metrics into fast and differentiable model called AFDistill (green line). 
@@ -19,7 +19,7 @@ AFDistill maintains comparable accuracy to AlphaFold's pTM/pLDDT estimates and c
 ## AFDistill Training  
 Top diagram shows distillation training of AFDistill. The scores from AlphaFold's confidence estimation are denoted as pTM and pLDDT, while the scores which are computed using ground truth and the AlphaFold's predicted 3D structures are denoted as TM and LDDT. These values are then discretized and treated as class labels during cross-entropy (CE) training. Note that the training based on TM/LDTT is limited since the number of known ground truth structures is small. The bottom diagram shows the inference stage of AFDistill, where for each protein sequence it estimates pTM and pLDDT scores.
 <p align="center">
-  <img src="imgs/DistillOverview.png" width="70%">
+  <img src="imgs/DistillOverview.png" width="90%">
 </p>
 
 ## Environment
