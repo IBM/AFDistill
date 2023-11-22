@@ -1,0 +1,53 @@
+diff --git a/methods/prodesign.py b/methods/prodesign.py
+index 9af4e01..aee3725 100644
+--- a/methods/prodesign.py
++++ b/methods/prodesign.py
+@@ -8,6 +8,10 @@ from .utils import cuda
+ from .prodesign_model import ProDesign_Model
+ from torch_scatter import scatter_sum
+ 
++import sys
++sys.path.insert(0, '/path/to/AFDistill')
++from model.litdistiller import LitDistiller
++
+ class ProDesign(Base_method):
+     def __init__(self, args, device, steps_per_epoch):
+         Base_method.__init__(self, args, device, steps_per_epoch)
+@@ -15,6 +19,8 @@ class ProDesign(Base_method):
+         self.criterion = nn.CrossEntropyLoss()
+         self.optimizer, self.scheduler = self._init_optimizer(steps_per_epoch)
+ 
++        self.afdistill = LitDistiller.load_from_checkpoint(checkpoint_path='/path/to/AFDistill/output/plddt_v1/checkpoints/checkpoint_last.ckpt', alphabet_downstream='ACDEFGHIKLMNPQRSTVWY').cuda()
++
+     def _build_model(self):
+         return ProDesign_Model(self.args).to(self.device)
+ 
+@@ -29,8 +35,20 @@ class ProDesign(Base_method):
+             self.optimizer.zero_grad()
+             X, S, score, mask, lengths = cuda(batch, device = self.device)
+             X, S, score, h_V, h_E, E_idx, batch_id, mask_bw, mask_fw, decoding_order = self.model._get_features(S, score, X=X, mask=mask)
+-            log_probs = self.model(h_V, h_E, E_idx, batch_id)
++            log_probs, logits = self.model(h_V, h_E, E_idx, batch_id, return_logit=True)
+             loss = self.criterion(log_probs, S)
++
++            AFlogits = []
++            actual_lengths = mask.sum(1).int()
++            cum = 0
++            for i, l in enumerate(actual_lengths):
++                AFlogits.append(logits[cum:cum+l])
++                cum += l
++
++            # apply structure consistency loss using AFDistill
++            sc_loss = self.afdistill.sc_loss(AFlogits).mean()
++            loss += 1.0 * torch.exp(-sc_loss) # modify weighting (1.0), if necessary
++
+             loss.backward()
+             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+             self.optimizer.step()
+@@ -141,4 +159,4 @@ class ProDesign(Base_method):
+ 
+         loss = -(S_onehot * log_probs).sum(-1).mean()
+         loss_av = torch.sum(loss)
+-        return loss, loss_av
+\ No newline at end of file
++        return loss, loss_av
